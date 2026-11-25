@@ -1,51 +1,19 @@
-# ACNHPoker
-> Seriously, someone please come up with a better name
+# Hyper
 
-Spawns items for you on Animal Crossing New Horizons using [sys-botbase](https://github.com/olliz0r/sys-botbase).
+A hypertrophy coach for a home gym. Static site, no build step, runs on GitHub Pages.
 
+- **Today**: check in (energy, sleep, time, soreness) and get a session built for the equipment you own, either by the AI coach or by the offline quick builder.
+- **Workout**: set logging with last-time values, double-progression targets, RIR, automatic rest timers, plate math and warm-up ramps.
+- **Progress**: weekly hard sets per muscle against target, estimated-1RM trends, bodyweight and sleep.
+- **Coach**: chat with any OpenRouter model; it reads your log, metrics and equipment and can hand back startable workouts.
+- **Data**: import Strong CSV history and Withings weight/sleep CSV; JSON backup and restore.
 
-## Pre Requisites
-   1. a nintendo switch capable of running unsigned code
-   2. [This](https://github.com/olliz0r/sys-botbase) installed on your switch.
-   3. Animal Crossing?
+Everything is stored in the browser's localStorage. The OpenRouter key never leaves the device except in requests to openrouter.ai.
 
-## Installation
+## Deploy
 
-Windows:
+Repo Settings → Pages → Deploy from a branch → pick the branch, folder `/ (root)`.
 
-```sh
-open the exe :)
-```
+## Run locally
 
-OS X & Linux:
-
-https://github.com/KingLycosa/acnhpoker_linux
-
-
-
-## Usage example
-
-https://youtu.be/-zztRgmtXig
-
-
-## Release History
-
-* 0.1
-    * Work in progress
-* 0.2
-   * Added some quality of life updates
-* 0.5
-   * Added inventory viewer. No more ugly buttons :)
-
-## Contributing
-
-1. Fork it (<https://github.com/KingLycosa/acnhpoker/fork>)
-2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Create a new Pull Request
-
-
-## Meta
-
-Distributed under the BSD 2 license. See ``LICENSE`` for more information.
+    python3 -m http.server 8000
