@@ -139,3 +139,5 @@ input.title { background: transparent; font-size: 26px; font-weight: 750; letter
 .pl { flex: none; display: flex; align-items: center; justify-content: center; margin-right: 2px; border-radius: 5px; background: var(--text); color: var(--bg); font-style: normal; animation: fade .18s ease; } .pl.p45 { background: var(--accent); color: var(--on-accent); }
 .pl span { transform: rotate(90deg); font-size: 11px; font-weight: 750; white-space: nowrap; }
 .pctl { display: flex; align-items: center; gap: 8px; } .pctl .chip { background: var(--card); } .pctl .chip.on { background: var(--accent); } .pctl .ezw { width: 68px; padding: 7px 8px; text-align: center; background: var(--card); font-weight: 650; }
+
+.vs { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14.5px; padding: 4px 0; } .vs small { display: block; }

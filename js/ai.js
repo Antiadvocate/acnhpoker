@@ -1,6 +1,6 @@
 // OpenRouter: model list, streaming chat, and the coach's view of your data.
 import { MUSCLES, MUSCLE_NAME, EQUIPMENT, guessMuscle, guessLoad } from './data.js';
-import { S, DAY, dayKey, fmt, allExercises, isAvailable, exById, findExercise, addCustomExercise, doneSets, lifts, workoutStats, muscleVolume, targets, exerciseSeries, trainedExercises, latestWeight } from './store.js';
+import { S, DAY, dayKey, fmt, allExercises, isAvailable, exById, findExercise, addCustomExercise, doneSets, lifts, workoutStats, muscleVolume, targets, exerciseSeries, trainedExercises, latestWeight, capacity } from './store.js';
 import { makeExercise, estMinutes, needMap } from './engine.js';
 
 const API = 'https://openrouter.ai/api/v1';
@@ -78,11 +78,11 @@ export function buildContext(checkin) {
   L.push('WEEKLY SETS PER MUSCLE (last 7d / prior 7d / target; hours since last trained):');
   L.push(MUSCLES.map(m => `${m.name} ${fmt(vol[m.id] || 0)}/${fmt(prev[m.id] || 0)}/${T[m.id]} (${nm[m.id].hrs > 900 ? 'never' : Math.round(nm[m.id].hrs) + 'h'})`).join('; '));
   if (ws.length) {
-    L.push(`RECENT SESSIONS (oldest first, weight x reps @RIR, ${u}):`);
+    L.push(`RECENT SESSIONS (oldest first; Rx = what the app prescribed, then what was actually done as weight x reps @RIR, ${u}):`);
     for (const w of ws) {
       const st = workoutStats(w), day = new Date(w.start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       if (w.cardio) { L.push(`- ${day}: ${w.title} — ${w.cardio.min} min${w.cardio.incline ? `, incline ${w.cardio.incline}%` : ''}${w.cardio.speed ? `, ${w.cardio.speed} mph` : ''}`); continue; }
-      L.push(`- ${day}: ${w.title} (${st.minutes}m${w.checkin?.energy ? `, energy ${w.checkin.energy}` : ''}): ${w.exercises.filter(e => doneSets(e).length).map(e => `${e.name} ${setsTxt(e)}`).join('; ')}`);
+      L.push(`- ${day}: ${w.title} (${st.minutes}m${w.planned ? ` vs ${w.planned.est}m estimated; ${st.sets}/${w.planned.sets} prescribed sets done` : ''}${w.checkin?.energy ? `, energy ${w.checkin.energy}` : ''}): ${w.exercises.filter(e => doneSets(e).length).map(e => `${e.name}${e.plan ? ` [Rx ${e.plan.n}x${e.plan.w ? e.plan.w + 'x' : ''}${e.plan.lo}-${e.plan.hi} @${e.plan.rir}]` : ''} ${setsTxt(e)}`).join('; ')}`);
     }
   } else L.push('RECENT SESSIONS: none logged yet.');
   const top = trainedExercises().slice(0, 8).map(({ ex }) => {
@@ -95,6 +95,8 @@ export function buildContext(checkin) {
   if (body.length > 1) L.push(`BODYWEIGHT: ${body[0].weight}→${body[body.length - 1].weight} ${u} (${body[0].date} to ${body[body.length - 1].date})`);
   const sl = S.sleepLog.filter(x => x.date >= dayKey(now - 7 * DAY));
   if (sl.length) L.push(`SLEEP 7d avg: ${fmt(sl.reduce((a, x) => a + x.hours, 0) / sl.length)} h (${sl.length} nights)`);
+  const cap = capacity();
+  if (cap) L.push(`DEMONSTRATED CAPACITY (last ${cap.n} prescribed sessions): finished ${cap.done}/${cap.planned} prescribed sets (${Math.round(cap.completion * 100)}%)${cap.minPerSet ? `; real pace ${fmt(Math.round(cap.minPerSet * 10) / 10)} min per set including rest` : ''}.`);
   const lifts28 = lifts().filter(w => w.start > now - 28 * DAY).length;
   L.push(`ADHERENCE: ${lifts28} lifting sessions in the last 28 days; ${lifts().length} logged all-time.`);
   if (S.templates.length) L.push(`SAVED TEMPLATES: ${S.templates.map(t => `${t.name} [${t.exercises.map(e => `${e.sets}x ${exById(e.exId).name}`).join(', ')}]`).join(' | ')}`);
@@ -111,7 +113,7 @@ const SCHEMA = '{"title": string, "rationale": string (2 sentences max, why this
 
 export function systemPrompt(checkin) {
   return `You are the coach inside Hyper, a personal hypertrophy training app. One athlete, their data is below.
-Principles: muscle growth first. Roughly 10–20 hard sets per muscle per week, each muscle about twice a week, most sets 0–3 reps from failure, 5–30 reps with compounds mostly 6–12 and isolations 10–20, progressive overload via double progression, favour movements loaded in the stretched position, cut junk volume. Adjust volume to recovery signals (sleep, energy, soreness, stalled or falling numbers). Prescribe ONLY with the equipment listed. Treat body notes as hard constraints; you are not a clinician.
+Principles: muscle growth first. Roughly 10–20 hard sets per muscle per week, each muscle about twice a week, most sets 0–3 reps from failure, 5–30 reps with compounds mostly 6–12 and isolations 10–20, progressive overload via double progression, favour movements loaded in the stretched position, cut junk volume. Calibrate to demonstrated capacity, not to the plan: compare each Rx with what was actually done. Where they beat it or left reps in the tank, the prescription was too easy, so raise it; where they fell short or skipped sets, hold or trim; then ask for slightly more than they showed (one rep per set, or the smallest load jump). Size the session to the sets and pace they really complete. Keep their staple lifts stable from week to week so progress is measurable; rotate an exercise only for a reason. Adjust volume to recovery signals (sleep, energy, soreness, stalled or falling numbers). Prescribe ONLY with the equipment listed. Treat body notes as hard constraints; you are not a clinician.
 ${TONE[S.ai.tone] || TONE.blunt}
 Be specific: exercises, sets, reps, loads, numbers from their log. Keep answers short unless asked for depth. Plain text with light markdown.
 When you prescribe a session or the athlete asks you to build/save a workout or template, include exactly one fenced code block tagged workout containing JSON of this shape (the app turns it into a startable workout):

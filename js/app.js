@@ -136,7 +136,7 @@ function vWorkout() {
       const pv = lp?.sets[si];
       return `<div class="set ${s.done ? 'done' : ''}"><span class="n">${si + 1}</span><span class="prev">${pv ? `${fmt(pv.w) || 'BW'}×${pv.r}` : '—'}</span>
       <input inputmode="decimal" data-bind="active.exercises.${ei}.sets.${si}.w" value="${esc(s.w)}" placeholder="${ex.load === 'bw' ? 'BW' : (pv ? fmt(pv.w) : '')}" aria-label="Weight">
-      <input inputmode="numeric" data-bind="active.exercises.${ei}.sets.${si}.r" value="${esc(s.r)}" placeholder="${pv ? pv.r : e.repRange[0] + '–' + e.repRange[1]}" aria-label="Reps">
+      <input inputmode="numeric" data-bind="active.exercises.${ei}.sets.${si}.r" value="${esc(s.r)}" placeholder="${s.t || (pv ? pv.r : e.repRange[0] + '–' + e.repRange[1])}" aria-label="Reps">
       <button class="rir" data-a="rir" data-ei="${ei}" data-si="${si}">${s.rir == null ? '–' : s.rir}</button>
       <button class="tick" data-a="done" data-ei="${ei}" data-si="${si}" aria-label="Complete set">✓</button></div>`;
     }).join('')}</div>
@@ -276,7 +276,7 @@ async function keepAwake() { try { if (S.active && ui.view === 'workout' && docu
 // ================= workout helpers =================
 function startWorkout(plan) {
   if (S.active && !confirm('A workout is already in progress. Replace it?')) return;
-  S.active = { id: uid(), title: plan.title, source: plan.source || 'custom', rationale: plan.rationale || '', start: Date.now(), checkin: { ...checkin() }, exercises: JSON.parse(JSON.stringify(plan.exercises)), timer: null };
+  S.active = { id: uid(), title: plan.title, source: plan.source || 'custom', rationale: plan.rationale || '', start: Date.now(), checkin: { ...checkin() }, exercises: JSON.parse(JSON.stringify(plan.exercises)), timer: null, planned: plan.exercises.length ? { sets: plan.exercises.reduce((a, e) => a + e.sets.length, 0), est: estMinutes(plan.exercises) } : null };
   ui.view = 'workout'; closeSheet(); save(); render(); keepAwake(); window.scrollTo(0, 0);
 }
 const tplToPlan = t => ({ title: t.name, source: 'template', rationale: '', exercises: t.exercises.map(e => makeExercise(e.exId, +e.sets || 3, e.repRange || [8, 12], 2, e.restSec || 120)) });
@@ -287,9 +287,17 @@ function summarySheet(w, prs) {
   openSheet(`<div class="eyebrow">Logged</div><h2>${esc(w.title)}</h2>
   <div class="tiles"><div class="tile"><span>Time</span><b>${st.minutes}<small> min</small></b></div><div class="tile"><span>Hard sets</span><b>${st.sets}</b></div><div class="tile"><span>Volume</span><b>${Math.round(st.volume).toLocaleString()}<small> ${U()}</small></b></div><div class="tile"><span>PRs</span><b>${prs.length}</b></div></div>
   ${prs.length ? `<div class="list">${prs.map(p => `<div class="item"><div><b>${esc(p.name)}</b><span class="muted small">Estimated 1RM ${fmt(p.from)} → ${fmt(p.to)} ${U()}</span></div><span class="tag on">PR</span></div>`).join('')}</div>` : ''}
+  ${w.planned ? `<div class="trow"><b>Asked vs done · ${Math.min(st.sets, w.planned.sets)}/${w.planned.sets} sets · ${st.minutes} of ~${w.planned.est} min</b>${w.exercises.filter(e => e.plan).map(e => { const v = verdict(e); return `<div class="vs"><span>${esc(e.name)}<small> ${e.plan.n} × ${e.plan.lo}–${e.plan.hi} → ${e.sets.map(s => s.r).join(', ')}</small></span><span class="tag ${v === 'Beat it' ? 'on' : ''}">${v}</span></div>`; }).join('')}<span class="muted small">Next time's targets are built from this, not from the plan.</span></div>` : ''}
   <div class="chips">${mm.map(([m, n]) => `<span class="chip sm static">${MUSCLE_NAME[m]} ${fmt(n)}</span>`).join('')}</div>
   <button class="btn primary big" data-a="closeSheet">Done</button>
   <button class="btn ghost wide" data-a="ask" data-q="Debrief the session I just finished. What went well, what the numbers say, and exactly what to do next time for each lift.">Get a coach debrief</button>`);
+}
+
+function verdict(e) {
+  const p = e.plan, reps = e.sets.map(s => +s.r), top = Math.max(...e.sets.map(s => +s.w || 0));
+  if (e.sets.length < p.n || reps.some(r => r < p.lo)) return 'Short';
+  if (reps.every(r => r >= p.hi) || (p.w && top > p.w)) return 'Beat it';
+  return 'On plan';
 }
 
 function historySheet(id) {
@@ -297,7 +305,7 @@ function historySheet(id) {
   const st = workoutStats(w);
   openSheet(`<div class="eyebrow">${dateLabel(w.start)} · ${new Date(w.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div><h2>${esc(w.title)}</h2>
   ${w.cardio ? `<p>${w.cardio.min} min${w.cardio.incline ? ` · incline ${w.cardio.incline}%` : ''}${w.cardio.speed ? ` · ${w.cardio.speed} mph` : ''}</p>` : `<p class="muted small">${st.minutes} min · ${st.sets} sets · ${Math.round(st.volume).toLocaleString()} ${U()}${w.checkin?.energy ? ` · energy ${w.checkin.energy}/5` : ''}</p>
-  ${w.exercises.map(e => `<div class="hx"><b>${esc(e.name)}</b>${e.sets.map((s, i) => `<div class="hs"><span class="muted">${i + 1}</span><span>${fmt(s.w) || 'BW'} × ${s.r}${s.rir != null ? ` <small class="muted">RIR ${s.rir}</small>` : ''}</span><span class="muted small">${+s.w ? 'e1RM ' + Math.round(e1rm(s.w, s.r)) : ''}</span></div>`).join('')}</div>`).join('')}
+  ${w.exercises.map(e => `<div class="hx"><b>${esc(e.name)}</b>${e.plan ? `<span class="muted small">Asked for ${e.plan.n} × ${e.plan.w ? fmt(e.plan.w) + ' × ' : ''}${e.plan.lo}–${e.plan.hi} · ${verdict(e)}</span>` : ''}${e.sets.map((s, i) => `<div class="hs"><span class="muted">${i + 1}</span><span>${fmt(s.w) || 'BW'} × ${s.r}${s.rir != null ? ` <small class="muted">RIR ${s.rir}</small>` : ''}</span><span class="muted small">${+s.w ? 'e1RM ' + Math.round(e1rm(s.w, s.r)) : ''}</span></div>`).join('')}</div>`).join('')}
   <div class="row"><button class="btn" data-a="histRepeat" data-id="${w.id}">Do it again</button><button class="btn" data-a="histTpl" data-id="${w.id}">Save as template</button></div>`}
   <button class="btn ghost wide danger" data-a="histDel" data-id="${w.id}">Delete session</button>`);
 }
@@ -421,7 +429,7 @@ const A = {
     const w = S.active, ex = w.exercises[el.dataset.ei], si = +el.dataset.si, s = ex.sets[si];
     if (s.done) { s.done = false; save(); return render(); }
     const lp = lastPerf(ex.exId), pv = lp?.sets[si];
-    if (!(+s.r > 0)) { if (pv) s.r = String(pv.r); else { toast('Enter your reps first'); el.parentNode.querySelectorAll('input')[1]?.focus(); return; } }
+    if (!(+s.r > 0)) { if (+s.t > 0) s.r = String(s.t); else if (pv) s.r = String(pv.r); else { toast('Enter your reps first'); el.parentNode.querySelectorAll('input')[1]?.focus(); return; } }
     if (s.w === '' && pv && +pv.w > 0) s.w = fmt(pv.w);
     const best = bestE1rm(ex.exId), mine = e1rm(s.w, s.r), sess = Math.max(0, ...ex.sets.filter(x => x.done).map(x => e1rm(x.w, x.r)));
     s.done = true;
@@ -442,11 +450,11 @@ const A = {
   cancelWorkout() { if (!confirm('Discard this workout? Nothing from it will be saved.')) return; S.active = null; ui.view = null; save(); render(); },
   finish() {
     const w = S.active, undone = w.exercises.reduce((a, e) => a + e.sets.filter(s => !s.done).length, 0);
-    const exs = w.exercises.map(e => ({ exId: e.exId, name: e.name, repRange: e.repRange, rir: e.rir, restSec: e.restSec, note: e.note, sets: e.sets.filter(s => s.done && +s.r > 0).map(({ w, r, rir }) => ({ w, r, rir, done: true })) })).filter(e => e.sets.length);
+    const exs = w.exercises.map(e => ({ exId: e.exId, name: e.name, repRange: e.repRange, rir: e.rir, restSec: e.restSec, note: e.note, plan: e.plan, sets: e.sets.filter(s => s.done && +s.r > 0).map(({ w, r, rir }) => ({ w, r, rir, done: true })) })).filter(e => e.sets.length);
     if (!exs.length) { if (confirm('Nothing logged. Discard this workout?')) { S.active = null; ui.view = null; save(); render(); } return; }
     if (undone && !confirm(`${undone} set${undone > 1 ? 's' : ''} not checked off. Finish anyway?`)) return;
     const prs = exs.map(e => { const from = bestE1rm(e.exId), to = Math.max(...e.sets.map(s => e1rm(s.w, s.r))); return from > 0 && to > from + 0.01 ? { name: e.name, from: Math.round(from), to: Math.round(to) } : null; }).filter(Boolean);
-    const fin = { id: w.id, title: (w.title || 'Workout').trim(), source: w.source, rationale: w.rationale, start: w.start, end: Date.now(), checkin: w.checkin, exercises: exs };
+    const fin = { id: w.id, title: (w.title || 'Workout').trim(), source: w.source, rationale: w.rationale, start: w.start, end: Date.now(), checkin: w.checkin, planned: w.planned, exercises: exs };
     addWorkout(fin); S.active = null; ui.view = null; ui.tab = 'today'; wake?.release?.(); save(); render(); summarySheet(fin, prs);
   },
   // walks

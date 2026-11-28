@@ -131,7 +131,7 @@ export function lastPerf(exId) {
   const ws = lifts();
   for (let i = ws.length - 1; i >= 0; i--) {
     const ex = ws[i].exercises.find(e => e.exId === exId);
-    if (ex && doneSets(ex).length) return { date: ws[i].start, sets: doneSets(ex), repRange: ex.repRange };
+    if (ex && doneSets(ex).length) return { date: ws[i].start, sets: doneSets(ex), repRange: ex.repRange, plan: ex.plan || null, rir: ex.rir ?? 2 };
   }
   return null;
 }
@@ -152,6 +152,19 @@ export function trainedExercises() {
   const count = {};
   for (const w of lifts()) for (const ex of w.exercises) if (doneSets(ex).length) count[ex.exId] = (count[ex.exId] || 0) + 1;
   return Object.entries(count).sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ ex: exById(id), n }));
+}
+
+// How the athlete's real sessions compare with what was prescribed (last 6 planned sessions).
+export function capacity() {
+  const ws = lifts().filter(w => w.planned && w.planned.sets > 0).slice(-6);
+  if (!ws.length) return null;
+  let done = 0, planned = 0, mins = 0, msets = 0;
+  for (const w of ws) {
+    const st = workoutStats(w);
+    done += Math.min(st.sets, w.planned.sets); planned += w.planned.sets;
+    if (st.minutes >= 10 && st.minutes <= 180 && st.sets >= 4) { mins += st.minutes; msets += st.sets; }
+  }
+  return { n: ws.length, done, planned, completion: done / planned, minPerSet: msets ? mins / msets : null };
 }
 
 export function addWorkout(w) {
