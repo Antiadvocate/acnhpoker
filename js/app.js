@@ -140,6 +140,7 @@ function vWorkout() {
       <button class="rir" data-a="rir" data-ei="${ei}" data-si="${si}">${s.rir == null ? '–' : s.rir}</button>
       <button class="tick" data-a="done" data-ei="${ei}" data-si="${si}" aria-label="Complete set">✓</button></div>`;
     }).join('')}</div>
+    <input class="cmt" data-bind="active.exercises.${ei}.comment" value="${esc(e.comment || '')}" placeholder="Note on this lift (feel, pain, setup)…" aria-label="Note on this lift">
     <div class="row"><button class="btn ghost sm" data-a="addSet" data-ei="${ei}">+ Set</button>${e.sets.length > 1 ? `<button class="btn ghost sm" data-a="delSet" data-ei="${ei}">− Set</button>` : ''}</div></section>`;
   }).join('')}
   <button class="btn wide" data-a="pickOpen" data-mode="add">+ Add exercise</button>
@@ -289,8 +290,19 @@ function summarySheet(w, prs) {
   ${prs.length ? `<div class="list">${prs.map(p => `<div class="item"><div><b>${esc(p.name)}</b><span class="muted small">Estimated 1RM ${fmt(p.from)} → ${fmt(p.to)} ${U()}</span></div><span class="tag on">PR</span></div>`).join('')}</div>` : ''}
   ${w.planned ? `<div class="trow"><b>Asked vs done · ${Math.min(st.sets, w.planned.sets)}/${w.planned.sets} sets · ${st.minutes} of ~${w.planned.est} min</b>${w.exercises.filter(e => e.plan).map(e => { const v = verdict(e); return `<div class="vs"><span>${esc(e.name)}<small> ${e.plan.n} × ${e.plan.lo}–${e.plan.hi} → ${e.sets.map(s => s.r).join(', ')}</small></span><span class="tag ${v === 'Beat it' ? 'on' : ''}">${v}</span></div>`; }).join('')}<span class="muted small">Next time's targets are built from this, not from the plan.</span></div>` : ''}
   <div class="chips">${mm.map(([m, n]) => `<span class="chip sm static">${MUSCLE_NAME[m]} ${fmt(n)}</span>`).join('')}</div>
+  ${postForm(w)}
   <button class="btn primary big" data-a="closeSheet">Done</button>
-  <button class="btn ghost wide" data-a="ask" data-q="Debrief the session I just finished. What went well, what the numbers say, and exactly what to do next time for each lift.">Get a coach debrief</button>`);
+  <button class="btn ghost wide" data-a="ask" data-q="Debrief the session I just finished, using my post-workout notes and conditions as well as the numbers. What went well, what the numbers say, and exactly what to do next time for each lift.">Get a coach debrief</button>`);
+}
+
+const EFFORT = [['easy', 'Too easy'], ['right', 'About right'], ['hard', 'Hard'], ['crushed', 'Crushed me']];
+const CONDITIONS = ['Felt strong', 'Good pump', 'Low energy', 'Poor sleep', 'Fasted', 'Under-ate', 'Stressed', 'Rushed', 'Distracted', 'Cold garage', 'Hot garage', 'Joint pain', 'Sore going in'];
+function postForm(w) {
+  w.post = w.post || { effort: '', tags: [], notes: '' }; ui.post = w;
+  return `<div class="trow"><b>How did it go?</b>${chips('ui.post.post.effort', EFFORT, w.post.effort)}
+  <span class="muted small">Conditions</span><div class="chips">${CONDITIONS.map(c => `<button class="chip sm ${w.post.tags.includes(c) ? 'on' : ''}" data-a="postTag" data-v="${c}">${c}</button>`).join('')}</div>
+  <textarea rows="3" data-bind="ui.post.post.notes" placeholder="Anything else: what felt off, what moved well, pain, setup, food, mood…">${esc(w.post.notes)}</textarea>
+  <span class="muted small">The coach reads this with the numbers, and the quick builder uses the effort rating.</span></div>`;
 }
 
 function verdict(e) {
@@ -305,7 +317,8 @@ function historySheet(id) {
   const st = workoutStats(w);
   openSheet(`<div class="eyebrow">${dateLabel(w.start)} · ${new Date(w.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div><h2>${esc(w.title)}</h2>
   ${w.cardio ? `<p>${w.cardio.min} min${w.cardio.incline ? ` · incline ${w.cardio.incline}%` : ''}${w.cardio.speed ? ` · ${w.cardio.speed} mph` : ''}</p>` : `<p class="muted small">${st.minutes} min · ${st.sets} sets · ${Math.round(st.volume).toLocaleString()} ${U()}${w.checkin?.energy ? ` · energy ${w.checkin.energy}/5` : ''}</p>
-  ${w.exercises.map(e => `<div class="hx"><b>${esc(e.name)}</b>${e.plan ? `<span class="muted small">Asked for ${e.plan.n} × ${e.plan.w ? fmt(e.plan.w) + ' × ' : ''}${e.plan.lo}–${e.plan.hi} · ${verdict(e)}</span>` : ''}${e.sets.map((s, i) => `<div class="hs"><span class="muted">${i + 1}</span><span>${fmt(s.w) || 'BW'} × ${s.r}${s.rir != null ? ` <small class="muted">RIR ${s.rir}</small>` : ''}</span><span class="muted small">${+s.w ? 'e1RM ' + Math.round(e1rm(s.w, s.r)) : ''}</span></div>`).join('')}</div>`).join('')}
+  ${w.exercises.map(e => `<div class="hx"><b>${esc(e.name)}</b>${e.comment ? `<span class="note">${esc(e.comment)}</span>` : ''}${e.plan ? `<span class="muted small">Asked for ${e.plan.n} × ${e.plan.w ? fmt(e.plan.w) + ' × ' : ''}${e.plan.lo}–${e.plan.hi} · ${verdict(e)}</span>` : ''}${e.sets.map((s, i) => `<div class="hs"><span class="muted">${i + 1}</span><span>${fmt(s.w) || 'BW'} × ${s.r}${s.rir != null ? ` <small class="muted">RIR ${s.rir}</small>` : ''}</span><span class="muted small">${+s.w ? 'e1RM ' + Math.round(e1rm(s.w, s.r)) : ''}</span></div>`).join('')}</div>`).join('')}
+  ${postForm(w)}
   <div class="row"><button class="btn" data-a="histRepeat" data-id="${w.id}">Do it again</button><button class="btn" data-a="histTpl" data-id="${w.id}">Save as template</button></div>`}
   <button class="btn ghost wide danger" data-a="histDel" data-id="${w.id}">Delete session</button>`);
 }
@@ -439,6 +452,7 @@ const A = {
     w.timer = remaining ? { end: Date.now() + ex.restSec * 1000, total: ex.restSec } : null;
     save(); render();
   },
+  postTag(el) { const t = ui.post.post.tags, v = el.dataset.v, i = t.indexOf(v); i >= 0 ? t.splice(i, 1) : t.push(v); el.classList.toggle('on', i < 0); save(); },
   barSet(el) { const e = S.active.exercises[el.dataset.ei]; e.bar = el.dataset.v; S.barPref[e.exId] = e.bar; save(); render(); },
   addSet(el) { const ex = S.active.exercises[el.dataset.ei], l = ex.sets[ex.sets.length - 1]; ex.sets.push({ w: l ? l.w : '', r: '', rir: null, done: false }); save(); render(); },
   delSet(el) { S.active.exercises[el.dataset.ei].sets.pop(); save(); render(); },
@@ -450,7 +464,7 @@ const A = {
   cancelWorkout() { if (!confirm('Discard this workout? Nothing from it will be saved.')) return; S.active = null; ui.view = null; save(); render(); },
   finish() {
     const w = S.active, undone = w.exercises.reduce((a, e) => a + e.sets.filter(s => !s.done).length, 0);
-    const exs = w.exercises.map(e => ({ exId: e.exId, name: e.name, repRange: e.repRange, rir: e.rir, restSec: e.restSec, note: e.note, plan: e.plan, sets: e.sets.filter(s => s.done && +s.r > 0).map(({ w, r, rir }) => ({ w, r, rir, done: true })) })).filter(e => e.sets.length);
+    const exs = w.exercises.map(e => ({ exId: e.exId, name: e.name, repRange: e.repRange, rir: e.rir, restSec: e.restSec, note: e.note, comment: (e.comment || '').trim(), plan: e.plan, sets: e.sets.filter(s => s.done && +s.r > 0).map(({ w, r, rir }) => ({ w, r, rir, done: true })) })).filter(e => e.sets.length);
     if (!exs.length) { if (confirm('Nothing logged. Discard this workout?')) { S.active = null; ui.view = null; save(); render(); } return; }
     if (undone && !confirm(`${undone} set${undone > 1 ? 's' : ''} not checked off. Finish anyway?`)) return;
     const prs = exs.map(e => { const from = bestE1rm(e.exId), to = Math.max(...e.sets.map(s => e1rm(s.w, s.r))); return from > 0 && to > from + 0.01 ? { name: e.name, from: Math.round(from), to: Math.round(to) } : null; }).filter(Boolean);

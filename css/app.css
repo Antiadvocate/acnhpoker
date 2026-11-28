@@ -141,3 +141,6 @@ input.title { background: transparent; font-size: 26px; font-weight: 750; letter
 .pctl { display: flex; align-items: center; gap: 8px; } .pctl .chip { background: var(--card); } .pctl .chip.on { background: var(--accent); } .pctl .ezw { width: 68px; padding: 7px 8px; text-align: center; background: var(--card); font-weight: 650; }
 
 .vs { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14.5px; padding: 4px 0; } .vs small { display: block; }
+
+.cmt { font-size: 14px; padding: 9px 12px; background: transparent; border: 1px dashed var(--line); color: var(--muted); } .cmt:focus { color: var(--text); border-style: solid; }
+.trow textarea { background: var(--card); } .trow .chip { background: var(--card); } .trow .chip.on { background: var(--accent); }

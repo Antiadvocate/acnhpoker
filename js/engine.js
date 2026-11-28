@@ -116,7 +116,8 @@ export function generateLocal(checkin) {
   // Calibrate to the athlete: their real minutes per set, and how much of a prescription they finish.
   const perSet = capOK && cap0.minPerSet ? Math.max(2, Math.min(4.5, cap0.minPerSet)) * (tight ? 0.85 : 1) : (tight ? 2.4 : 2.9);
   const cF = !capOK ? 1 : cap0.completion < 0.88 ? Math.max(0.75, cap0.completion) : 1;
-  let left = Math.max(5, Math.min(28, Math.round((time - 5) / perSet * eF * sF * cF) + (capOK && cap0.completion >= 0.98 && energy >= 3 ? 1 : 0)));
+  const felt = lifts().slice(-1)[0]?.post?.effort, fF = felt === 'crushed' ? 0.88 : 1;
+  let left = Math.max(5, Math.min(28, Math.round((time - 5) / perSet * eF * sF * cF * fF) + (capOK && cap0.completion >= 0.98 && energy >= 3 && felt !== 'crushed' && felt !== 'hard' ? 1 : 0) + (felt === 'easy' ? 1 : 0)));
   const budget = left;
   const cap = focus === 'full' ? 5 : ['upper', 'lower'].includes(focus) ? 7 : 9;
   const pool = allExercises().filter(isAvailable);
@@ -154,6 +155,8 @@ export function generateLocal(checkin) {
   if (short.length) why.push(`${short.map(x => `${MUSCLE_NAME[x.m]} (${fmt(x.done)}/${x.target} sets)`).join(' and ')} ${short.length > 1 ? 'are' : 'is'} furthest behind this week, so they lead.`);
   if (capOK && cF < 1) why.push(`You've finished ${Math.round(cap0.completion * 100)}% of prescribed sets lately, so this is sized to what you actually do.`);
   else if (capOK && cap0.completion >= 0.98) why.push(`You've completed everything prescribed in your last ${cap0.n} sessions, so there's one more set than your usual.`);
+  if (felt === 'crushed') why.push('You said the last session crushed you, so volume is pulled back a notch.');
+  if (felt === 'easy') why.push('You said the last session was too easy, so there is a set more.');
   if (energy <= 2) why.push(`Energy ${energy}/5: volume trimmed, leave ~3 reps in the tank.`);
   if (energy >= 4) why.push(`Energy ${energy}/5: push the first compounds, 1–2 reps from failure.`);
   if (sleep < 6) why.push(`${sleep}h sleep: fewer sets, same quality.`);
