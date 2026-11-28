@@ -131,13 +131,12 @@ export function generateLocal(checkin) {
 }
 
 // ---------- plates & warm-ups ----------
-export function plateCalc(total) {
-  const bar = +S.gear.barWeight || 45;
+export function plateCalc(total, bar = +S.gear.barWeight || 45) {
   const plates = String(S.gear.plates).split(',').map(Number).filter(x => x > 0).sort((a, b) => b - a);
   let side = (total - bar) / 2; const out = [];
-  if (side < 0) return { ok: false, text: `Lighter than the ${bar} bar` };
+  if (side < 0) return { ok: false, out: [], left: 0, text: `Lighter than the ${bar} bar` };
   for (const p of plates) while (side >= p - 1e-9) { out.push(p); side -= p; }
-  return { ok: side < 0.01, out, text: out.length ? out.join(' · ') + ' per side' + (side >= 0.01 ? ` (+${fmt(side)} unloadable)` : '') : 'Empty bar' };
+  return { ok: side < 0.01, out, left: side < 0.01 ? 0 : side * 2, text: out.length ? out.join(' · ') + ' per side' + (side >= 0.01 ? ` (+${fmt(side)} unloadable)` : '') : 'Empty bar' };
 }
 export function warmups(work, isBarbell) {
   work = +work; if (!work) return [];

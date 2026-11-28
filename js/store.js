@@ -16,7 +16,8 @@ function defaults() {
     v: 1,
     profile: { onboarded: false, name: '', units: 'lb', bodyweight: '', age: '', experience: 'intermediate', daysPerWeek: 3, sessionMin: 60, notes: '' },
     equipment: Object.fromEntries(EQUIPMENT.map(e => [e.id, e.on])),
-    gear: { barWeight: 45, plates: '45,35,25,10,5,2.5', dbStep: 5 },
+    gear: { barWeight: 45, ezWeight: 25, plates: '45,35,25,10,5,2.5', dbStep: 5 },
+    barPref: {},          // exId → 'oly' | 'ez'
     ai: { key: '', model: 'anthropic/claude-sonnet-5.5', tone: 'blunt' },
     today: null,          // today's check-in
     draft: null,          // generated-but-not-started workout

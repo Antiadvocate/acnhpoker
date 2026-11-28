@@ -128,3 +128,14 @@ input.title { background: transparent; font-size: 26px; font-weight: 750; letter
 .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; display: inline-block; animation: sp .7s linear infinite; vertical-align: -3px; } @keyframes sp { to { transform: rotate(360deg); } }
 .onboard { display: flex; flex-direction: column; gap: 14px; } .brand { font-weight: 800; letter-spacing: -.03em; font-size: 20px; color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* barbell loading */
+.plates { background: var(--card2); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.pvis { display: flex; flex-direction: column; gap: 8px; } .pinfo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; } .pinfo b { font-size: 20px; letter-spacing: -.01em; }
+.pbar { display: flex; align-items: center; height: 72px; overflow: hidden; }
+.pbar .grip { flex: none; width: 74px; height: 12px; background: var(--muted); border-radius: 3px 0 0 3px; font-size: 10.5px; font-weight: 700; color: var(--bg); line-height: 12px; text-align: center; }
+.pbar .collar { flex: none; width: 9px; height: 26px; background: var(--muted); border-radius: 2px; margin-right: 2px; }
+.pbar .sleeve { flex: 1; min-width: 18px; height: 16px; background: var(--muted); opacity: .7; border-radius: 0 4px 4px 0; }
+.pl { flex: none; display: flex; align-items: center; justify-content: center; margin-right: 2px; border-radius: 5px; background: var(--text); color: var(--bg); font-style: normal; animation: fade .18s ease; } .pl.p45 { background: var(--accent); color: var(--on-accent); }
+.pl span { transform: rotate(90deg); font-size: 11px; font-weight: 750; white-space: nowrap; }
+.pctl { display: flex; align-items: center; gap: 8px; } .pctl .chip { background: var(--card); } .pctl .chip.on { background: var(--accent); } .pctl .ezw { width: 68px; padding: 7px 8px; text-align: center; background: var(--card); font-weight: 650; }

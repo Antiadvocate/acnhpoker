@@ -35,6 +35,24 @@ function checkin() {
   return S.today;
 }
 
+// ---------- barbell loading picture ----------
+const barOf = e => { const k = e.bar || S.barPref[e.exId] || (/\bez\b/i.test(e.name) ? 'ez' : 'oly'); return { k, w: k === 'ez' ? (+S.gear.ezWeight || 0) : (+S.gear.barWeight || 45) }; };
+const plateTarget = e => +(e.sets.find(s => !s.done && +s.w > 0) || [...e.sets].reverse().find(s => +s.w > 0) || {}).w || 0;
+function plateVis(e, w = plateTarget(e)) {
+  w = +w || 0; const bar = barOf(e);
+  if (!w) return `<div class="pinfo"><span class="muted small">Enter a weight and the plates show up here.</span></div>`;
+  const pc = plateCalc(w, bar.w);
+  if (w < bar.w) return `<div class="pinfo"><b>${fmt(w)} ${U()}</b><span class="muted small">Lighter than the ${fmt(bar.w)} ${U()} bar</span></div>`;
+  const plate = p => `<i class="pl ${p >= 45 ? 'p45' : ''}" style="height:${Math.round(24 + Math.sqrt(p / 45) * 44)}px;width:${p >= 25 ? 22 : p >= 10 ? 17 : 13}px"><span>${fmt(p)}</span></i>`;
+  return `<div class="pinfo"><b>${fmt(w)} ${U()}</b><span class="${pc.left ? 'danger' : 'muted'} small">${pc.left ? `Can't load ${fmt(pc.left)} ${U()} with your plates` : pc.out.length ? `Each side: ${pc.out.map(fmt).join(' + ')}` : 'Empty bar'}</span></div>
+  <div class="pbar" role="img" aria-label="${fmt(bar.w)} ${U()} bar, each side: ${pc.out.map(fmt).join(', ') || 'no plates'}"><span class="grip">${fmt(bar.w)} ${U()}</span><span class="collar"></span>${pc.out.map(plate).join('')}<span class="sleeve"></span></div>`;
+}
+function plateBox(e, ei) {
+  const bar = barOf(e);
+  return `<div class="plates" id="pl${ei}"><div class="pvis">${plateVis(e)}</div>
+  <div class="pctl"><button class="chip sm ${bar.k === 'oly' ? 'on' : ''}" data-a="barSet" data-ei="${ei}" data-v="oly">Olympic ${fmt(S.gear.barWeight)}</button><button class="chip sm ${bar.k === 'ez' ? 'on' : ''}" data-a="barSet" data-ei="${ei}" data-v="ez">EZ bar</button>${bar.k === 'ez' ? `<input class="ezw" inputmode="decimal" data-num="1" data-bind="gear.ezWeight" data-ei="${ei}" value="${esc(S.gear.ezWeight)}" aria-label="EZ bar weight"><span class="muted small">${U()}</span>` : ''}</div></div>`;
+}
+
 // ================= views =================
 function vOnboard() {
   const p = S.profile;
@@ -112,7 +130,7 @@ function vWorkout() {
   ${w.exercises.map((e, ei) => {
     const ex = exById(e.exId), lp = lastPerf(e.exId);
     return `<section class="card ex"><div class="head"><div><h3>${esc(e.name)}</h3><span class="muted small">${e.sets.length} × ${e.repRange[0]}–${e.repRange[1]} · RIR ${e.rir} · rest ${clock(e.restSec)}</span></div><button class="more" data-a="exMenu" data-ei="${ei}" aria-label="Exercise options">⋯</button></div>
-    ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}${e.hint ? `<p class="hint">${esc(e.hint)}</p>` : ''}
+    ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}${e.hint ? `<p class="hint">${esc(e.hint)}</p>` : ''}${ex.load === 'bb' ? plateBox(e, ei) : ''}
     <div class="sets"><div class="set hd"><span>Set</span><span>Last</span><span>${ex.load === 'bw' ? '+' + U() : U()}</span><span>Reps</span><span>RIR</span><span></span></div>
     ${e.sets.map((s, si) => {
       const pv = lp?.sets[si];
@@ -200,7 +218,7 @@ function vYou() {
     <div class="field"><span>Tone</span>${chips('ai.tone', [['blunt', 'Blunt'], ['balanced', 'Balanced'], ['gentle', 'Gentle']], S.ai.tone)}</div>
   </section>
   <section class="card"><h2>Equipment</h2>${equipList()}
-    <div class="field two"><label><span>Bar weight</span><input inputmode="decimal" data-bind="gear.barWeight" data-num="1" value="${esc(S.gear.barWeight)}"></label><label><span>Dumbbell jump</span><input inputmode="decimal" data-bind="gear.dbStep" data-num="1" value="${esc(S.gear.dbStep)}"></label></div>
+    <div class="three"><label><span>Olympic bar</span><input inputmode="decimal" data-bind="gear.barWeight" data-num="1" value="${esc(S.gear.barWeight)}"></label><label><span>EZ bar</span><input inputmode="decimal" data-bind="gear.ezWeight" data-num="1" value="${esc(S.gear.ezWeight)}"></label><label><span>Dumbbell jump</span><input inputmode="decimal" data-bind="gear.dbStep" data-num="1" value="${esc(S.gear.dbStep)}"></label></div>
     <label class="field"><span>Plates you own (one of each pair)</span><input data-bind="gear.plates" value="${esc(S.gear.plates)}"></label>
   </section>
   <section class="card"><h2>Data</h2>
@@ -312,11 +330,10 @@ function pickSheet() {
 function exMenuSheet(ei) {
   const e = S.active.exercises[ei], ex = exById(e.exId);
   const work = +(e.sets.find(s => +s.w > 0)?.w) || 0, bb = ex.load === 'bb';
-  const pc = bb && work ? plateCalc(work) : null, wu = work ? warmups(work, bb) : [];
+  const barW = barOf(e).w, wu = work ? warmups(work, bb) : [];
   const ser = exerciseSeries(e.exId);
   openSheet(`<div class="eyebrow">${MUSCLE_NAME[ex.primary]}${ex.secondary.length ? ' · ' + ex.secondary.map(m => MUSCLE_NAME[m]).join(', ') : ''}</div><h2>${esc(e.name)}</h2>
-  ${pc ? `<div class="trow"><b>Load ${fmt(work)} ${U()}</b><span class="muted">${esc(pc.text)}</span></div>` : ''}
-  ${wu.length ? `<div class="trow"><b>Warm-up ramp</b>${wu.map(s => `<span class="muted">${fmt(s.w)} × ${s.r}${bb ? ` — ${esc(plateCalc(s.w).text)}` : ''}</span>`).join('')}</div>` : ''}
+    ${wu.length ? `<div class="trow"><b>Warm-up ramp</b>${wu.map(s => `<span class="muted">${fmt(s.w)} × ${s.r}${bb ? ` — ${esc(plateCalc(s.w, barW).text)}` : ''}</span>`).join('')}</div>` : ''}
   <div class="field"><span>Rest between sets</span>${chips(`active.exercises.${ei}.restSec`, [[45, '0:45'], [60, '1:00'], [90, '1:30'], [120, '2:00'], [150, '2:30'], [180, '3:00']], e.restSec)}</div>
   ${ser.length > 1 ? `<div class="field"><span>Estimated 1RM, ${U()}</span>${lineChart(ser, { unit: U(), label: 'Estimated 1RM' })}</div>` : ''}
   <div class="row"><button class="btn" data-a="pickOpen" data-mode="swap" data-ei="${ei}">Swap</button><button class="btn" data-a="exMove" data-ei="${ei}" data-d="-1">Move up</button><button class="btn" data-a="exMove" data-ei="${ei}" data-d="1">Move down</button></div>
@@ -414,6 +431,7 @@ const A = {
     w.timer = remaining ? { end: Date.now() + ex.restSec * 1000, total: ex.restSec } : null;
     save(); render();
   },
+  barSet(el) { const e = S.active.exercises[el.dataset.ei]; e.bar = el.dataset.v; S.barPref[e.exId] = e.bar; save(); render(); },
   addSet(el) { const ex = S.active.exercises[el.dataset.ei], l = ex.sets[ex.sets.length - 1]; ex.sets.push({ w: l ? l.w : '', r: '', rir: null, done: false }); save(); render(); },
   delSet(el) { S.active.exercises[el.dataset.ei].sets.pop(); save(); render(); },
   exMenu(el) { exMenuSheet(+el.dataset.ei); },
@@ -466,6 +484,12 @@ function applyPick(id) {
   save(); closeSheet(); render();
 }
 
+function showPlates(el) {
+  const m = /^active\.exercises\.(\d+)\.sets\.\d+\.w$/.exec(el.dataset.bind || ''), ei = m ? m[1] : el.classList.contains('ezw') ? el.dataset.ei : null;
+  const box = ei != null && $(`#pl${ei} .pvis`); if (!box) return;
+  box.innerHTML = plateVis(S.active.exercises[ei], m ? el.value : undefined);
+}
+
 async function readFile(el) {
   const f = el.files[0]; if (!f) return; const text = await f.text(); el.value = '';
   try {
@@ -487,6 +511,7 @@ document.addEventListener('input', e => {
   if (!el.dataset.bind) return;
   setPath(el.dataset.bind, el.dataset.num ? (el.value === '' ? '' : +el.value) : el.value);
   saveSoon();
+  showPlates(el);
   if (el.dataset.render) render();
   if (el.id === 'msg') { el.style.height = 'auto'; el.style.height = Math.min(140, el.scrollHeight) + 'px'; }
 });
@@ -495,7 +520,7 @@ document.addEventListener('keydown', e => {
   if (e.target.id === 'msg' && e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); sendChat(ui.msg); }
   if (e.key === 'Enter' && e.target.matches?.('.set input')) e.target.blur();
 });
-document.addEventListener('focusin', e => { if (e.target.matches?.('.set input')) e.target.select(); });
+document.addEventListener('focusin', e => { if (e.target.matches?.('.set input')) { e.target.select(); showPlates(e.target); } });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { keepAwake(); tick(); } else save(); });
 window.addEventListener('pagehide', save);
 
